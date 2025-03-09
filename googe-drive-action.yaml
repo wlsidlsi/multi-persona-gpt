@@ -1,0 +1,292 @@
+openapi: 3.1.0
+info:
+  title: Google Drive API
+  description: >
+    OpenAPI 3.1.0 specification illustrating CRUD operations, file/folder listing, file content updates, and additional
+    parameters for moving or updating files via the Drive API's files.update method. This version includes query
+    parameters like addParents, removeParents, keepRevisionForever, etc. for full compatibility with Google Drive v3.
+    CustomGPTs cannot send binary files so uploading from the conversation isn't supported without running a external
+    service.  The external service would then need to be authenticated since there is no way to pass token from a
+    custom action to the external service.
+  version: 1.0.0
+
+# Security: define OAuth2 with the Drive scope
+components:
+  securitySchemes:
+    googleOAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://accounts.google.com/o/oauth2/v2/auth
+          tokenUrl: https://oauth2.googleapis.com/token
+          scopes:
+            "https://www.googleapis.com/auth/drive.file": "Limited Drive file access (upload/create)."
+
+  schemas:
+    File:
+      type: object
+      description: A partial representation of the Google Drive File resource.
+      properties:
+        name:
+          type: string
+          description: The name/title of the file
+        mimeType:
+          type: string
+          description: The MIME type of the file
+        description:
+          type: string
+          description: A short description of the file
+        parents:
+          type: array
+          description: IDs of parent folders
+          items:
+            type: string
+        starred:
+          type: boolean
+          description: Whether this file is starred
+        trashed:
+          type: boolean
+          description: Whether this file is in the trash
+        appProperties:
+          type: object
+          additionalProperties:
+            type: string
+          description: Custom key/value pairs set by apps
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+          description: Deprecated; prefer appProperties
+
+# Apply security globally; all paths require the googleOAuth security scheme.
+security:
+  - googleOAuth:
+      - "https://www.googleapis.com/auth/drive.file"
+
+servers:
+  - url: https://www.googleapis.com
+
+paths:
+  /drive/v3/files:
+    get:
+      summary: List files/folders
+      operationId: listFiles
+      description: Retrieves a list of files/folders from the user's Drive.
+      responses:
+        "200":
+          description: Successful response with file list
+        "401":
+          description: Unauthorized or invalid credentials
+
+    post:
+      summary: Create a file/folder
+      operationId: createFile
+      description: >
+        Creates a new file or folder in the user's Drive.  
+        For a folder, set `mimeType=application/vnd.google-apps.folder`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/File"
+      responses:
+        "200":
+          description: File or folder created
+        "400":
+          description: Bad request or missing required data
+        "401":
+          description: Unauthorized or invalid credentials
+
+  /drive/v3/files/{fileId}:
+    get:
+      summary: Read file/folder metadata
+      operationId: readFile
+      description: Retrieves metadata for a file or folder by its ID.
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File or folder metadata
+        "401":
+          description: Unauthorized or invalid credentials
+        "404":
+          description: Not found
+
+    patch:
+      summary: Update metadata for file/folder.
+      operationId: updateFileMetadata
+      description: |
+        Updates metadata for a file/folder by its ID using "files.update".  
+        This uses PATCH and supports partial updates to name, description, etc.  
+        For moving, use addParents/removeParents. Only use for metadata.
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: addParents
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of parent folder IDs to add
+        - name: removeParents
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of parent folder IDs to remove
+        - name: keepRevisionForever
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Whether to keep the revision forever (counted against 200 revision cap)
+        - name: ocrLanguage
+          in: query
+          required: false
+          schema:
+            type: string
+          description: A language hint for OCR processing during image import
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Whether the request supports both My Drives and shared drives
+        - name: useContentAsIndexableText
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Use the uploaded content as indexable text
+        - name: includePermissionsForView
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Which additional view's permissions to include (only 'published' supported)
+        - name: includeLabels
+          in: query
+          required: false
+          schema:
+            type: string
+          description: A comma-separated list of label IDs to include in the labelInfo
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/File"
+      responses:
+        "200":
+          description: File or folder metadata updated
+        "401":
+          description: Unauthorized or invalid credentials
+        "404":
+          description: Not found
+
+    delete:
+      summary: Delete a file/folder
+      operationId: deleteFile
+      description: Permanently deletes a file or folder by its ID.
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: File or folder deleted
+        "401":
+          description: Unauthorized or invalid credentials
+        "404":
+          description: Not found
+
+  /upload/drive/v3/files/{fileId}:
+    post:
+      summary: Update file contents (files.update with upload)
+      operationId: updateFileContent
+      description: >
+        Replaces or updates an existing file's contents.  
+        Use addParents/removeParents in the query if needed for moves.  
+        `uploadType` must be specified for media, multipart, or resumable.
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: File ID
+        - name: addParents
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of parent folder IDs to add
+        - name: removeParents
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of parent folder IDs to remove
+        - name: keepRevisionForever
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Whether to keep the revision forever (counted against 200 revision cap)
+        - name: ocrLanguage
+          in: query
+          required: false
+          schema:
+            type: string
+          description: A language hint for OCR processing during image import
+        - name: supportsAllDrives
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Whether the request supports both My Drives and shared drives
+        - name: useContentAsIndexableText
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Use the uploaded content as indexable text
+        - name: includePermissionsForView
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Which additional view's permissions to include (only 'published' supported)
+        - name: includeLabels
+          in: query
+          required: false
+          schema:
+            type: string
+          description: A comma-separated list of label IDs to include in the labelInfo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: string
+      responses:
+        "200":
+          description: File content updated
+        "400":
+          description: Bad request or missing required data
+        "401":
+          description: Unauthorized or invalid credentials
+        "404":
+          description: Not found
