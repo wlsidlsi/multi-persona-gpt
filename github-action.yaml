@@ -1,0 +1,937 @@
+openapi: 3.1.0
+info:
+  title: GitHub API
+  description: |
+    Comprehensive GitHub API schema covering repository contents, commits, branches, merges, issues, comments,
+    assignees, labels, milestones, pull requests, collaborators, and metadata. This schema includes
+
+    1. listCommits (GET /repos/{owner}/{repo}/commits)
+    2. listBranches (GET /repos/{owner}/{repo}/branches)
+    3. createMerge (POST /repos/{owner}/{repo}/merges)
+    4. searchRepositories (GET /search/repositories)
+    5. createCommit (POST /repos/{owner}/{repo}/git/commits)
+    6. createIssue (POST /repos/{owner}/{repo}/issues)
+    7. listIssueComments (GET /repos/{owner}/{repo}/issues/{issue_number}/comments)
+    8. createIssueComment (POST /repos/{owner}/{repo}/issues/{issue_number}/comments)  # Added: Create Issue Comment
+    9. listAssignees (GET /repos/{owner}/{repo}/assignees)
+    10. CRUD Labels (GET, POST, PATCH, DELETE on /repos/{owner}/{repo}/labels)
+    11. getRepositoryMetadata (GET /repos/{owner}/{repo})
+    12. getRepositoryContent (GET /repos/{owner}/{repo}/contents/{path})
+    13. createPullRequest (POST /repos/{owner}/{repo}/pulls)
+    14. listPullRequests (GET /repos/{owner}/{repo}/pulls)
+  version: 1.0.0
+servers:
+  - url: "https://api.github.com"
+
+paths:
+  /repos/{owner}/{repo}/commits:
+    get:
+      operationId: listCommits
+      summary: List Commits
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: per_page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+        - name: author # Added: Filtering example
+          in: query
+          schema:
+            type: string
+            description: Filter commits by author username.
+            example: "octocat"
+      responses:
+        "200":
+          description: Commits retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Commit" # Using specific schema
+
+  /repos/{owner}/{repo}/branches:
+    get:
+      operationId: listBranches
+      summary: List Branches
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: per_page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+      responses:
+        "200":
+          description: Branches retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch" # Using specific schema
+
+  /repos/{owner}/{repo}/merges:
+    post:
+      operationId: createMerge
+      summary: Create Merge
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                base:
+                  type: string
+                head:
+                  type: string
+                commit_message:
+                  type: string
+              required:
+                - base
+                - head
+      responses:
+        "201":
+          description: Merge completed successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /search/repositories:
+    get:
+      operationId: searchRepositories
+      summary: Search Repositories
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: per_page # Added: Pagination (though might be API specific parameter name)
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination (though might be API specific parameter name)
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+      responses:
+        "200":
+          description: Repositories retrieved successfully
+
+  /repos/{owner}/{repo}/git/commits:
+    post:
+      operationId: createCommit
+      summary: Create Commit
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                tree:
+                  type: string
+                parents:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - message
+                - tree
+                - parents
+      responses:
+        "201":
+          description: Commit created successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /repos/{owner}/{repo}/issues:
+    post:
+      operationId: createIssue
+      summary: Create Issue
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Bug report"
+                body:
+                  type: string
+                  example: "Details of the bug"
+              required:
+                - title
+      responses:
+        "201":
+          description: Issue created successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /repos/{owner}/{repo}/issues/{issue_number}/comments:
+    get:
+      operationId: listIssueComments
+      summary: List Issue Comments
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: issue_number
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 42
+        - name: per_page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+      responses:
+        "200":
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IssueComment" # Using specific schema
+    post: # Added: Create Issue Comment Operation
+      operationId: createIssueComment
+      summary: Create Issue Comment
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: issue_number
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                body:
+                  type: string
+                  example: "This is a comment on the issue."
+              required:
+                - body
+      responses:
+        "201":
+          description: Comment created successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /repos/{owner}/{repo}/assignees:
+    get:
+      operationId: listAssignees
+      summary: List Assignees
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: per_page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+      responses:
+        "200":
+          description: Assignees retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object # Could create AssigneeSchema if needed
+
+  /repos/{owner}/{repo}/labels:
+    get:
+      operationId: listLabels
+      summary: List Labels
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: per_page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+      responses:
+        "200":
+          description: Labels retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Label" # Using specific schema
+    post:
+      operationId: createLabel
+      summary: Create Label
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "bug"
+                color:
+                  type: string
+                  example: "f29513"
+              required:
+                - name
+                - color
+      responses:
+        "201":
+          description: Label created successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /repos/{owner}/{repo}/labels/{name}:
+    patch:
+      operationId: updateLabel
+      summary: Update Label
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "bug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                color: # Removed redundant name property, only allowing color update
+                  type: string
+                  example: "ddbb22"
+      responses:
+        "200":
+          description: Label updated successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: deleteLabel
+      summary: Delete Label
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "bug"
+      responses:
+        "204":
+          description: Label deleted successfully
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+
+  /repos/{owner}/{repo}:
+    get:
+      operationId: getRepositoryMetadata
+      summary: Get Repository Metadata
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+      responses:
+        "200":
+          description: Repository metadata retrieved successfully
+
+  /repos/{owner}/{repo}/contents/{path}:
+    get:
+      operationId: getRepositoryContent
+      summary: Get Repository Content
+      description: |
+        Retrieves the content from a specific path within a GitHub repository.
+        The path can be a file or directory, and the response structure may
+        vary accordingly.
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "README.md"
+      responses:
+        "200":
+          description: Repository content retrieved successfully
+    put:
+      operationId: createOrUpdateFile
+      summary: Create or Update a File
+      description: |
+        Creates or updates a file in a GitHub repository at the specified path. The file content is expected
+        to be sent as Base64-encoded text. A valid commit message is required for the operation.
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "README.md"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: "Updating the README"
+                content:
+                  type: string
+                  description: Base64 encoded file content
+                  example: "Q29udGVudCBvZiB0aGUgZmlsZSBpbiBCYXNlNjQgZm9ybWF0"
+                sha:
+                  type: string
+                  description: | # Clarified sha description
+                    The blob SHA of the file being replaced (if updating an existing file).
+                    **Required only when updating an existing file, omit when creating a new file.**
+                  example: "abc123..."
+                branch:
+                  type: string
+                  example: "main"
+              required:
+                - message
+                - content
+      responses:
+        "201":
+          description: File created successfully
+        "200":
+          description: File updated successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /repos/{owner}/{repo}/pulls:
+    get:
+      operationId: listPullRequests
+      summary: List Pull Requests
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: per_page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 30
+            description: Number of items to return per page.
+        - name: page # Added: Pagination
+          in: query
+          schema:
+            type: integer
+            default: 1
+            description: Page number of the results to fetch.
+        - name: state # Added: Filtering example
+          in: query
+          schema:
+            type: string
+            enum: ["open", "closed", "all"]
+            description: Filter pull requests by state.
+            default: "open"
+      responses:
+        "200":
+          description: Pull requests listed successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PullRequest" # Using specific schema
+    post:
+      operationId: createPullRequest
+      summary: Create Pull Request
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "New Feature"
+                head:
+                  type: string
+                  example: "feature-branch"
+                base:
+                  type: string
+                  example: "main"
+                body:
+                  type: string
+                  example: "This PR adds a new feature"
+              required:
+                - title
+                - head
+                - base
+      responses:
+        "201":
+          description: Pull request created successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /repos/{owner}/{repo}/issues/{issue_number}:
+    patch:
+      operationId: updateIssue
+      summary: Update or Close Issue
+      description: Updates or closes an existing GitHub issue by setting state to closed.
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "octocat"
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "hello-world"
+        - name: issue_number
+          in: path
+          required: true
+          schema:
+            type: integer
+            example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Updated Issue Title"
+                body:
+                  type: string
+                  example: "Updated description of the issue"
+                state:
+                  type: string
+                  enum: ["open", "closed"]
+                  example: "closed"
+                assignees:
+                  type: array
+                  items:
+                    type: string
+                labels:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Issue updated successfully
+        "400": # Added Error response
+          $ref: "#/components/responses/BadRequest"
+        "404": # Added Error response
+          $ref: "#/components/responses/NotFound"
+        "422": # Added Error response
+          $ref: "#/components/responses/UnprocessableEntity"
+
+components:
+  schemas:
+    BasicResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Operation successful"
+        url:
+          type: string
+          example: "https://api.github.com/repos/octocat/hello-world"
+    ErrorResponse: # Added Generic Error Response Schema
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Error message describing the issue."
+        code:
+          type: integer
+          example: 400
+    Commit: # Added Commit Schema
+      type: object
+      properties:
+        sha:
+          type: string
+          description: Commit SHA
+        author:
+          type: object # Simplified, could be more detailed
+          description: Commit author information
+        message:
+          type: string
+          description: Commit message
+        date:
+          type: string
+          format: date-time
+          description: Commit date
+    Branch: # Added Branch Schema
+      type: object
+      properties:
+        name:
+          type: string
+          description: Branch name
+        commit:
+          type: object # Simplified, could be more detailed
+          description: Last commit on the branch
+    IssueComment: # Added IssueComment Schema
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Comment ID
+        body:
+          type: string
+          description: Comment body
+        user:
+          type: object # Simplified, could be more detailed
+          description: User who commented
+        created_at:
+          type: string
+          format: date-time
+          description: Comment creation timestamp
+    Label: # Added Label Schema
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Label ID
+        name:
+          type: string
+          description: Label name
+        color:
+          type: string
+          description: Label color code
+    PullRequest: # Added PullRequest Schema
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Pull Request ID
+        title:
+          type: string
+          description: Pull Request title
+        state:
+          type: string
+          enum: ["open", "closed"]
+          description: Pull Request state
+        user:
+          type: object # Simplified, could be more detailed
+          description: User who created the PR
+        created_at:
+          type: string
+          format: date-time
+          description: Pull Request creation timestamp
+
+  responses:
+    BadRequest: # Reusable Bad Request Response
+      description: Bad Request - Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound: # Reusable Not Found Response
+      description: Not Found - Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnprocessableEntity: # Reusable Unprocessable Entity Response
+      description: Unprocessable Entity - Semantic errors, validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://github.com/login/oauth/authorize
+          tokenUrl: https://github.com/login/oauth/access_token
+          scopes:
+            repo: "Full control of private repositories"
+            user: "Read and write user data"
+            admin: "Full control of repositories and organizations"
